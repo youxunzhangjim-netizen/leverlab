@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+:root {
+  --chalk-bg: #101317;
+  --chalk-panel: #171C22;
+  --chalk-border: #2A323D;
+  --volt-lime: #84CC16;
+  --caution-amber: #F59E0B;
+  --spike-crimson: #DC2626;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.font-display-lab {
+  font-family: 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
+}
+
+.font-mono-telemetry {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
