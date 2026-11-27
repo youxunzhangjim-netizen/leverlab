@@ -10,11 +10,11 @@
 }
 
 body {
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Plus Jakarta Sans', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .font-display-lab {
-  font-family: 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Space Grotesk', 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif;
 }
 
 .font-mono-telemetry {

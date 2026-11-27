@@ -1,5 +1,17 @@
-import React, { useMemo, useState } from 'react';
-import { Activity, Camera, ClipboardList, Download, KeyRound, Lock, Sliders, Sun, Moon, ShieldAlert } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Activity,
+  Camera,
+  ClipboardList,
+  Download,
+  Globe,
+  KeyRound,
+  Lock,
+  Moon,
+  ShieldAlert,
+  Sliders,
+  Sun,
+} from 'lucide-react';
 import { PresetPose, SkillType, solveStaticShoulderTorque } from './engine/biomechanics/torqueSolver';
 import { prescribeAutoBridge } from './engine/biomechanics/bridgePrescriber';
 import { generate12WeekMesocycle } from './engine/biomechanics/acwrAndPeriodization';
@@ -14,6 +26,16 @@ import {
 import { BodyRigSvg } from './components/BodyRigSvg';
 import { WorkoutLogPanel } from './components/WorkoutLogPanel';
 import { ProLicenseModal } from './components/ProLicenseModal';
+import {
+  formatPhaseLabel,
+  formatPoseLabel,
+  formatSkillLabel,
+  LeverLang,
+  loadInitialLeverLang,
+  localizeBridgeStep,
+  saveLeverLang,
+  tr,
+} from './i18n';
 
 const LVLB_STORAGE_KEY = 'leverlab_license_v1';
 const LVLB_LOCAL_FREE_KEY = 'leverlab_local_sim_free_v1';
@@ -50,15 +72,7 @@ function loadInitialLeverLabLicense(localHost: boolean): LeverLabLicenseState {
   }
 }
 
-const POSE_OPTIONS: Array<{ id: PresetPose; label: string }> = [
-  { id: 'tuck', label: 'Tuck' },
-  { id: 'adv_tuck', label: 'Adv. Tuck' },
-  { id: 'one_leg', label: 'One-Leg' },
-  { id: 'half_lay', label: 'Half-Lay' },
-  { id: 'straddle', label: 'Straddle' },
-  { id: 'full', label: 'Full' },
-  { id: 'custom', label: 'Custom Angles' },
-];
+const POSE_IDS: PresetPose[] = ['tuck', 'adv_tuck', 'one_leg', 'half_lay', 'straddle', 'full', 'custom'];
 
 export const App: React.FC = () => {
   const [daylight, setDaylight] = useState(false);
@@ -66,6 +80,12 @@ export const App: React.FC = () => {
   const [isLocalHost] = useState<boolean>(() => detectLocalHost());
   const [license, setLicense] = useState<LeverLabLicenseState>(() => loadInitialLeverLabLicense(detectLocalHost()));
   const [proOpen, setProOpen] = useState(false);
+  const [lang, setLang] = useState<LeverLang>(() => loadInitialLeverLang());
+
+  useEffect(() => {
+    document.documentElement.lang = lang === 'zh-TW' ? 'zh-Hant' : 'en';
+    saveLeverLang(lang);
+  }, [lang]);
 
   const handleActivate = (next: LeverLabLicenseState): void => {
     setLicense(next);
@@ -99,7 +119,6 @@ export const App: React.FC = () => {
     }
   };
 
-  // Athlete anthropometrics
   const [heightCm, setHeightCm] = useState(175);
   const [weightKg, setWeightKg] = useState(70);
   const [useCustomLimbs, setUseCustomLimbs] = useState(false);
@@ -107,7 +126,6 @@ export const App: React.FC = () => {
   const [customThighCm, setCustomThighCm] = useState(42.9);
   const [customShankCm, setCustomShankCm] = useState(43.1);
 
-  // Pose & assist
   const [skill, setSkill] = useState<SkillType>('front_lever');
   const [pose, setPose] = useState<PresetPose>('straddle');
   const [straddleAngleDeg, setStraddleAngleDeg] = useState(90);
@@ -117,12 +135,10 @@ export const App: React.FC = () => {
   const [bandAssistKg, setBandAssistKg] = useState(0);
   const [ankleWeightKg, setAnkleWeightKg] = useState(0);
 
-  // Auto-Bridge controls
   const [bridgeStartPose, setBridgeStartPose] = useState<'tuck' | 'adv_tuck' | 'one_leg' | 'straddle' | 'half_lay'>('adv_tuck');
   const [bridgeHoldSec, setBridgeHoldSec] = useState(12);
   const [bridgeStepPct, setBridgeStepPct] = useState(8);
 
-  // V2 MediaPipe lazy stub preview
   const [visionStatus, setVisionStatus] = useState<string | null>(null);
 
   const athlete = useMemo(
@@ -206,7 +222,6 @@ export const App: React.FC = () => {
 
   return (
     <div className={`min-h-screen ${bgMain} flex flex-col transition-colors`}>
-      {/* Compact Athletic Telemetry Header */}
       <header className={`border-b ${borderCls} ${daylight ? 'bg-white' : 'bg-[#171C22]'}`}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-2.5 min-h-14 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
@@ -218,18 +233,18 @@ export const App: React.FC = () => {
                 LeverLab
               </h1>
               <p className={`text-[11px] ${mutedText} mt-0.5`}>
-                Planche &amp; front lever shoulder torque
+                {tr(lang, '街頭健身靜態力矩＆直臂肌腱負荷工作台', 'Planche & front lever shoulder torque')}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <nav aria-label="LeverLab sections" className="flex items-center gap-1">
               {(
                 [
-                  { id: 'torque', icon: Activity, label: 'Torque Rig' },
-                  { id: 'bridge', icon: Sliders, label: 'Auto-Bridge' },
-                  { id: 'log', icon: ClipboardList, label: 'Tendon Log' },
+                  { id: 'torque', icon: Activity, label: tr(lang, '靜態力矩儀', 'Torque Rig') },
+                  { id: 'bridge', icon: Sliders, label: tr(lang, '進階微調橋接', 'Auto-Bridge') },
+                  { id: 'log', icon: ClipboardList, label: tr(lang, '肌腱負荷日誌', 'Tendon Log') },
                 ] as const
               ).map((t) => {
                 const Icon = t.icon;
@@ -266,17 +281,27 @@ export const App: React.FC = () => {
               <span className="hidden sm:inline">
                 {license.isPro
                   ? license.mode === 'local_full'
-                    ? 'EDITION: PRO'
+                    ? tr(lang, '版本：PRO', 'EDITION: PRO')
                     : 'PRO'
-                  : 'Edition & License'}
+                  : tr(lang, '方案與授權', 'Edition & License')}
               </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setLang((l) => (l === 'zh-TW' ? 'en' : 'zh-TW'))}
+              aria-label="Switch interface language"
+              className={`inline-flex items-center gap-1 px-2 py-1.5 text-xs font-mono-telemetry border ${borderCls} cursor-pointer`}
+            >
+              <Globe className="w-3.5 h-3.5 text-[#84CC16]" />
+              <span>{lang === 'zh-TW' ? '繁中 | EN' : 'EN | 繁中'}</span>
             </button>
 
             <button
               type="button"
               onClick={() => setDaylight((d) => !d)}
               aria-label="Toggle daylight or dark gym contrast mode"
-              className={`ml-1 p-1.5 border ${borderCls} cursor-pointer`}
+              className={`p-1.5 border ${borderCls} cursor-pointer`}
             >
               {daylight ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4 text-[#F59E0B]" />}
             </button>
@@ -286,31 +311,47 @@ export const App: React.FC = () => {
 
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-5 space-y-4">
         <div className={`px-4 py-2.5 border ${panelCls} text-xs ${mutedText} flex flex-wrap items-center gap-x-4 gap-y-1`}>
-          <span className={`font-mono-telemetry font-semibold ${accentText}`}>How to use:</span>
-          <span>1. Enter height and weight (or custom limb lengths).</span>
-          <span>2. Pick a pose or angles to compare shoulder torque.</span>
-          <span>3. Use Auto-Bridge for smaller jumps and Tendon Log to track weekly load.</span>
+          <span className={`font-mono-telemetry font-semibold ${accentText}`}>
+            {tr(lang, '使用步驟：', 'How to use:')}
+          </span>
+          <span>{tr(lang, '1. 輸入身高與體重（或捲尺實測肢段長度）。', '1. Enter height and weight (or custom limb lengths).')}</span>
+          <span>{tr(lang, '2. 選擇動作姿勢與分腿／彈力帶參數，即時比較肩關節力矩。', '2. Pick a pose or angles to compare shoulder torque.')}</span>
+          <span>{tr(lang, '3. 切換「進階微調橋接」安排 6%–10% 安全增幅，並用「肌腱負荷日誌」監控週訓練量。', '3. Use Auto-Bridge for smaller jumps and Tendon Log to track weekly load.')}</span>
         </div>
 
         {/* Summary Metrics */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 font-mono-telemetry tabular-nums">
           <div className={`p-3.5 border ${panelCls}`}>
-            <span className={`text-[10px] block ${mutedText}`}>TOTAL SHOULDER TORQUE</span>
+            <span className={`text-[10px] block ${mutedText}`}>
+              {tr(lang, '雙肩總靜態力矩', 'TOTAL SHOULDER TORQUE')}
+            </span>
             <span className={`text-2xl font-bold ${accentText}`}>{solution.totalTorqueNm} N·m</span>
-            <span className={`text-[11px] block ${mutedText}`}>Per shoulder: {solution.perShoulderTorqueNm} N·m</span>
+            <span className={`text-[11px] block ${mutedText}`}>
+              {tr(lang, `單側肩關節：${solution.perShoulderTorqueNm} N·m`, `Per shoulder: ${solution.perShoulderTorqueNm} N·m`)}
+            </span>
           </div>
           <div className={`p-3.5 border ${panelCls}`}>
-            <span className={`text-[10px] block ${mutedText}`}>% OF YOUR FULL LEVER</span>
+            <span className={`text-[10px] block ${mutedText}`}>
+              {tr(lang, '佔全展體力矩百分比', '% OF YOUR FULL LEVER')}
+            </span>
             <span className="text-2xl font-bold">{solution.percentOfFull}%</span>
-            <span className={`text-[11px] block ${mutedText}`}>Full ref: {solution.fullReferenceTorqueNm} N·m</span>
+            <span className={`text-[11px] block ${mutedText}`}>
+              {tr(lang, `全展體基準：${solution.fullReferenceTorqueNm} N·m`, `Full ref: ${solution.fullReferenceTorqueNm} N·m`)}
+            </span>
           </div>
           <div className={`p-3.5 border ${panelCls}`}>
-            <span className={`text-[10px] block ${mutedText}`}>COM HORIZONTAL MOMENT ARM</span>
+            <span className={`text-[10px] block ${mutedText}`}>
+              {tr(lang, '質心水平力臂距離 (COM)', 'COM HORIZONTAL MOMENT ARM')}
+            </span>
             <span className="text-2xl font-bold text-[#F59E0B]">{solution.centerOfMassXFromShoulderCm} cm</span>
-            <span className={`text-[11px] block ${mutedText}`}>Suspended mass: {(weightKg * 0.9).toFixed(1)} kg</span>
+            <span className={`text-[11px] block ${mutedText}`}>
+              {tr(lang, `懸空質量：${(weightKg * 0.9).toFixed(1)} kg`, `Suspended mass: ${(weightKg * 0.9).toFixed(1)} kg`)}
+            </span>
           </div>
           <div className={`p-3.5 border ${panelCls}`}>
-            <span className={`text-[10px] block ${mutedText}`}>YOUR ADV. TUCK → STRADDLE CLIFF</span>
+            <span className={`text-[10px] block ${mutedText}`}>
+              {tr(lang, '進階團身 → 分腿力矩斷崖', 'YOUR ADV. TUCK → STRADDLE CLIFF')}
+            </span>
             <span className="text-2xl font-bold text-[#F59E0B]">+{advTuckVsStraddleCliff.jumpPct}%</span>
             <span className={`text-[11px] block ${mutedText}`}>
               {advTuckVsStraddleCliff.advNm} → {advTuckVsStraddleCliff.str90Nm} N·m
@@ -321,49 +362,40 @@ export const App: React.FC = () => {
         {/* TAB 1: INTERACTIVE TORQUE RIG */}
         {activeTab === 'torque' && (
           <div className="space-y-5">
-            <BodyRigSvg solution={solution} skill={skill} bandAssistKg={bandAssistKg} daylight={daylight} />
+            <BodyRigSvg
+              lang={lang}
+              solution={solution}
+              skill={skill}
+              bandAssistKg={bandAssistKg}
+              daylight={daylight}
+            />
 
             <section className={`grid grid-cols-1 lg:grid-cols-12 border ${panelCls}`}>
               {/* Athlete Dimensions */}
               <div className={`lg:col-span-5 p-5 border-b lg:border-b-0 lg:border-r ${borderCls} space-y-4`}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h2 className="font-display-lab text-sm font-bold uppercase tracking-wider">
-                    Anthropometrics
+                    {tr(lang, '人體測量參數', 'Anthropometrics')}
                   </h2>
-                  <div className="flex gap-1 text-xs font-mono-telemetry">
-                    <button
-                      type="button"
-                      onClick={() => setSkill('front_lever')}
-                      className={`px-2 py-1 border cursor-pointer ${
-                        skill === 'front_lever' ? 'border-[#84CC16] bg-[#84CC16]/20 font-bold' : borderCls
-                      }`}
-                    >
-                      Front Lever
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSkill('planche')}
-                      className={`px-2 py-1 border cursor-pointer ${
-                        skill === 'planche' ? 'border-[#84CC16] bg-[#84CC16]/20 font-bold' : borderCls
-                      }`}
-                    >
-                      Planche
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSkill('back_lever')}
-                      className={`px-2 py-1 border cursor-pointer ${
-                        skill === 'back_lever' ? 'border-[#84CC16] bg-[#84CC16]/20 font-bold' : borderCls
-                      }`}
-                    >
-                      Back Lever
-                    </button>
+                  <div className="flex flex-wrap gap-1 text-xs font-mono-telemetry">
+                    {(['front_lever', 'planche', 'back_lever'] as const).map((sk) => (
+                      <button
+                        key={sk}
+                        type="button"
+                        onClick={() => setSkill(sk)}
+                        className={`px-2 py-1 border cursor-pointer ${
+                          skill === sk ? 'border-[#84CC16] bg-[#84CC16]/20 font-bold' : borderCls
+                        }`}
+                      >
+                        {formatSkillLabel(lang, sk)}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <label htmlFor="height-cm">Stature Height</label>
+                    <label htmlFor="height-cm">{tr(lang, '身高 (Stature Height)', 'Stature Height')}</label>
                     <span className={`font-mono-telemetry font-bold ${accentText}`}>{heightCm} cm</span>
                   </div>
                   <input
@@ -379,7 +411,7 @@ export const App: React.FC = () => {
 
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <label htmlFor="weight-kg">Body Mass</label>
+                    <label htmlFor="weight-kg">{tr(lang, '體重 (Body Mass)', 'Body Mass')}</label>
                     <span className={`font-mono-telemetry font-bold ${accentText}`}>{weightKg} kg</span>
                   </div>
                   <input
@@ -407,7 +439,11 @@ export const App: React.FC = () => {
                     className="accent-[#84CC16]"
                   />
                   <span>
-                    Override Drillis–Contini ratios with tape-measured limb lengths
+                    {tr(
+                      lang,
+                      '以捲尺實測軀幹／大腿／小腿長度覆寫標準比例',
+                      'Override Drillis–Contini ratios with tape-measured limb lengths'
+                    )}
                     {!license.isPro && (
                       <span className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] font-mono-telemetry text-[#F59E0B]">
                         <Lock className="w-2.5 h-2.5" /> Pro
@@ -419,7 +455,9 @@ export const App: React.FC = () => {
                 {useCustomLimbs && license.isPro && (
                   <div className="grid grid-cols-3 gap-2 text-xs font-mono-telemetry">
                     <div>
-                      <label htmlFor="c-trunk" className={`block text-[10px] ${mutedText}`}>Trunk (cm)</label>
+                      <label htmlFor="c-trunk" className={`block text-[10px] ${mutedText}`}>
+                        {tr(lang, '軀幹長 (cm)', 'Trunk (cm)')}
+                      </label>
                       <input
                         id="c-trunk"
                         type="number"
@@ -430,7 +468,9 @@ export const App: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label htmlFor="c-thigh" className={`block text-[10px] ${mutedText}`}>Femur (cm)</label>
+                      <label htmlFor="c-thigh" className={`block text-[10px] ${mutedText}`}>
+                        {tr(lang, '大腿股骨 (cm)', 'Femur (cm)')}
+                      </label>
                       <input
                         id="c-thigh"
                         type="number"
@@ -441,7 +481,9 @@ export const App: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label htmlFor="c-shank" className={`block text-[10px] ${mutedText}`}>Shank (cm)</label>
+                      <label htmlFor="c-shank" className={`block text-[10px] ${mutedText}`}>
+                        {tr(lang, '小腿脛骨 (cm)', 'Shank (cm)')}
+                      </label>
                       <input
                         id="c-shank"
                         type="number"
@@ -458,20 +500,22 @@ export const App: React.FC = () => {
               {/* Pose, Straddle & Assist Controls */}
               <div className="lg:col-span-7 p-5 space-y-4">
                 <div>
-                  <span className={`block text-xs mb-2 ${mutedText}`}>Static Progression Pose</span>
+                  <span className={`block text-xs mb-2 ${mutedText}`}>
+                    {tr(lang, '靜態退階／進階姿勢', 'Static Progression Pose')}
+                  </span>
                   <div className="flex flex-wrap gap-1.5">
-                    {POSE_OPTIONS.map((p) => (
+                    {POSE_IDS.map((pid) => (
                       <button
-                        key={p.id}
+                        key={pid}
                         type="button"
-                        onClick={() => setPose(p.id)}
+                        onClick={() => setPose(pid)}
                         className={`px-2.5 py-1.5 text-xs font-mono-telemetry border cursor-pointer ${
-                          pose === p.id
+                          pose === pid
                             ? 'border-[#84CC16] bg-[#84CC16] text-[#101317] font-bold'
                             : borderCls
                         }`}
                       >
-                        {p.label}
+                        {formatPoseLabel(lang, pid)}
                       </button>
                     ))}
                   </div>
@@ -480,7 +524,9 @@ export const App: React.FC = () => {
                 {(pose === 'straddle' || pose === 'custom') && (
                   <div>
                     <div className="flex justify-between text-xs mb-1">
-                      <label htmlFor="straddle-deg">Straddle Abduction Angle (φ)</label>
+                      <label htmlFor="straddle-deg">
+                        {tr(lang, '雙腿外展分腿張角 (φ)', 'Straddle Abduction Angle (φ)')}
+                      </label>
                       <span className={`font-mono-telemetry font-bold ${accentText}`}>{straddleAngleDeg}°</span>
                     </div>
                     <input
@@ -500,7 +546,7 @@ export const App: React.FC = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <div className="flex justify-between text-xs mb-1">
-                        <label htmlFor="hip-deg">Hip Flexion</label>
+                        <label htmlFor="hip-deg">{tr(lang, '髖關節屈曲角', 'Hip Flexion')}</label>
                         <span className="font-mono-telemetry">{hipAngleDeg}°</span>
                       </div>
                       <input
@@ -515,7 +561,7 @@ export const App: React.FC = () => {
                     </div>
                     <div>
                       <div className="flex justify-between text-xs mb-1">
-                        <label htmlFor="knee-deg">Knee Flexion</label>
+                        <label htmlFor="knee-deg">{tr(lang, '膝關節屈曲角', 'Knee Flexion')}</label>
                         <span className="font-mono-telemetry">{kneeAngleDeg}°</span>
                       </div>
                       <input
@@ -534,7 +580,7 @@ export const App: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <div className="flex justify-between text-xs mb-1">
-                      <label htmlFor="tilt-deg">Incline Body Tilt (θ)</label>
+                      <label htmlFor="tilt-deg">{tr(lang, '身體仰角／斜度 (θ)', 'Incline Body Tilt (θ)')}</label>
                       <span className={`font-mono-telemetry font-bold ${accentText}`}>{bodyTiltDeg}°</span>
                     </div>
                     <input
@@ -550,7 +596,7 @@ export const App: React.FC = () => {
                   </div>
                   <div>
                     <div className="flex justify-between text-xs mb-1">
-                      <label htmlFor="band-kg">Hip Band Assist</label>
+                      <label htmlFor="band-kg">{tr(lang, '骨盆彈力帶輔助', 'Hip Band Assist')}</label>
                       <span className="font-mono-telemetry text-[#F59E0B] font-bold">-{bandAssistKg} kg</span>
                     </div>
                     <input
@@ -566,7 +612,7 @@ export const App: React.FC = () => {
                   </div>
                   <div>
                     <div className="flex justify-between text-xs mb-1">
-                      <label htmlFor="ankle-kg">Ankle Weight</label>
+                      <label htmlFor="ankle-kg">{tr(lang, '腳踝負重沙袋', 'Ankle Weight')}</label>
                       <span className="font-mono-telemetry font-bold">+{ankleWeightKg} kg</span>
                     </div>
                     <input
@@ -585,7 +631,12 @@ export const App: React.FC = () => {
                 {/* V2 Lazy MediaPipe WASM Module Hook */}
                 <div className={`pt-3 border-t ${borderCls} flex flex-wrap items-center justify-between gap-2 text-xs`}>
                   <span className={mutedText}>
-                    {visionStatus || 'V2 LeverLab Vision: Local browser MediaPipe Pose angle-check module ready.'}
+                    {visionStatus ||
+                      tr(
+                        lang,
+                        'V2 LeverLab 視覺模組：純瀏覽器本地端 MediaPipe 關節角度檢測架構已就緒。',
+                        'V2 LeverLab Vision: Local browser MediaPipe Pose angle-check module ready.'
+                      )}
                   </span>
                   <button
                     type="button"
@@ -593,7 +644,7 @@ export const App: React.FC = () => {
                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 font-mono-telemetry border ${borderCls} hover:border-[#84CC16] cursor-pointer`}
                   >
                     <Camera className="w-3.5 h-3.5" />
-                    Inspect V2 Pose Engine
+                    {tr(lang, '檢視 V2 姿態引擎', 'Inspect V2 Pose Engine')}
                   </button>
                 </div>
               </div>
@@ -607,15 +658,25 @@ export const App: React.FC = () => {
             <div className={`flex flex-wrap items-end justify-between gap-4 border-b ${borderCls} pb-4`}>
               <div>
                 <h2 className="font-display-lab text-base font-bold">
-                  6-Step Auto-Bridge Progression Ladder (Tendon-Safe 6%–10% Torque Steps)
+                  {tr(
+                    lang,
+                    '6 階自動進階微調橋接階梯（嚴格控制每次 6%–10% 肌腱安全力矩增幅）',
+                    '6-Step Auto-Bridge Progression Ladder (Tendon-Safe 6%–10% Torque Steps)'
+                  )}
                 </h2>
                 <p className={`text-xs ${mutedText}`}>
-                  Eliminates the +{advTuckVsStraddleCliff.jumpPct}% Adv. Tuck → Straddle cliff with exact band tension and straddle angle narrowing for {heightCm} cm / {weightKg} kg.
+                  {tr(
+                    lang,
+                    `針對 ${heightCm} cm / ${weightKg} kg 體態，以精確彈力帶磅數與分腿張角收窄消除 +${advTuckVsStraddleCliff.jumpPct}% 的進階團身→分腿斷崖。`,
+                    `Eliminates the +${advTuckVsStraddleCliff.jumpPct}% Adv. Tuck → Straddle cliff with exact band tension and straddle angle narrowing for ${heightCm} cm / ${weightKg} kg.`
+                  )}
                 </p>
               </div>
               <div className="flex flex-wrap gap-3 text-xs font-mono-telemetry">
                 <div>
-                  <label htmlFor="b-pose" className={`block text-[10px] ${mutedText}`}>Current Pose</label>
+                  <label htmlFor="b-pose" className={`block text-[10px] ${mutedText}`}>
+                    {tr(lang, '目前穩定姿勢', 'Current Pose')}
+                  </label>
                   <select
                     id="b-pose"
                     value={bridgeStartPose}
@@ -624,15 +685,17 @@ export const App: React.FC = () => {
                     }
                     className={`px-2 py-1 border ${borderCls} bg-transparent`}
                   >
-                    <option value="tuck" className="text-black">Tuck</option>
-                    <option value="adv_tuck" className="text-black">Adv. Tuck</option>
-                    <option value="one_leg" className="text-black">One-Leg</option>
-                    <option value="half_lay" className="text-black">Half-Lay</option>
-                    <option value="straddle" className="text-black">Straddle 90°</option>
+                    <option value="tuck" className="text-black">{formatPoseLabel(lang, 'tuck')}</option>
+                    <option value="adv_tuck" className="text-black">{formatPoseLabel(lang, 'adv_tuck')}</option>
+                    <option value="one_leg" className="text-black">{formatPoseLabel(lang, 'one_leg')}</option>
+                    <option value="half_lay" className="text-black">{formatPoseLabel(lang, 'half_lay')}</option>
+                    <option value="straddle" className="text-black">{formatPoseLabel(lang, 'straddle')} 90°</option>
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="b-hold" className={`block text-[10px] ${mutedText}`}>Max Hold (s)</label>
+                  <label htmlFor="b-hold" className={`block text-[10px] ${mutedText}`}>
+                    {tr(lang, '極限秒數 (s)', 'Max Hold (s)')}
+                  </label>
                   <input
                     id="b-hold"
                     type="number"
@@ -644,7 +707,9 @@ export const App: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label htmlFor="b-step" className={`block text-[10px] ${mutedText}`}>Step Jump %</label>
+                  <label htmlFor="b-step" className={`block text-[10px] ${mutedText}`}>
+                    {tr(lang, '每階增幅 %', 'Step Jump %')}
+                  </label>
                   <input
                     id="b-step"
                     type="number"
@@ -659,40 +724,51 @@ export const App: React.FC = () => {
             </div>
 
             <div className="space-y-2.5">
-              {bridgeLadder.map((step) => (
-                <div
-                  key={step.stepNumber}
-                  className={`p-3.5 border ${borderCls} flex flex-wrap items-center justify-between gap-3`}
-                >
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono-telemetry text-[11px] px-1.5 py-0.5 bg-[#84CC16] text-[#101317] font-bold">
-                        STEP {step.stepNumber}
-                      </span>
-                      <h3 className="text-sm font-bold">{step.label}</h3>
+              {bridgeLadder.map((step) => {
+                const loc = localizeBridgeStep(lang, step, skill);
+                return (
+                  <div
+                    key={step.stepNumber}
+                    className={`p-3.5 border ${borderCls} flex flex-wrap items-center justify-between gap-3`}
+                  >
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono-telemetry text-[11px] px-1.5 py-0.5 bg-[#84CC16] text-[#101317] font-bold">
+                          STEP {step.stepNumber}
+                        </span>
+                        <h3 className="text-sm font-bold">{loc.label}</h3>
+                      </div>
+                      <p className={`text-xs ${mutedText}`}>{loc.cue}</p>
+                      <p className="text-[11px] font-mono-telemetry text-[#F59E0B]">{step.prescribedSetsAndHold}</p>
                     </div>
-                    <p className={`text-xs ${mutedText}`}>{step.cue}</p>
-                    <p className="text-[11px] font-mono-telemetry text-[#F59E0B]">{step.prescribedSetsAndHold}</p>
+                    <div className="text-right font-mono-telemetry tabular-nums">
+                      <span className={`block text-base font-bold ${accentText}`}>{step.targetTorqueNm} N·m</span>
+                      <span className={`block text-xs ${mutedText}`}>
+                        {step.percentOfFull}% Full (+{step.deltaFromPrevPct}%)
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-right font-mono-telemetry tabular-nums">
-                    <span className={`block text-base font-bold ${accentText}`}>{step.targetTorqueNm} N·m</span>
-                    <span className={`block text-xs ${mutedText}`}>
-                      {step.percentOfFull}% Full (+{step.deltaFromPrevPct}%)
-                    </span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
-            {/* 12-Week Periodized Straight-Arm Mesocycle (With Wk 4/8/12 Tendon Deloads) */}
+            {/* 12-Week Periodized Straight-Arm Mesocycle */}
             <div className={`pt-4 border-t ${borderCls} space-y-3`}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h3 className="font-display-lab text-sm font-bold">
-                    12-Week Periodized Mesocycle (Includes Mandatory Wk 4 / 8 / 12 Tendon Deloads)
+                    {tr(
+                      lang,
+                      '12 週週期化直臂課表（內建第 4 / 8 / 12 週膠原蛋白重塑強制減量週）',
+                      '12-Week Periodized Mesocycle (Includes Mandatory Wk 4 / 8 / 12 Tendon Deloads)'
+                    )}
                   </h3>
                   <p className={`text-xs ${mutedText}`}>
-                    Auto-mapped to your {heightCm} cm / {weightKg} kg Auto-Bridge targets with 60% deload weeks for collagen remodeling.
+                    {tr(
+                      lang,
+                      `自動對應您的 ${heightCm} cm / ${weightKg} kg 橋接階梯，每 4 週安排減量保護肱二頭肌遠端肌腱。`,
+                      `Auto-mapped to your ${heightCm} cm / ${weightKg} kg Auto-Bridge targets with 60% deload weeks for collagen remodeling.`
+                    )}
                   </p>
                 </div>
                 <button
@@ -707,32 +783,40 @@ export const App: React.FC = () => {
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono-telemetry border border-[#84CC16] bg-[#84CC16]/15 font-bold cursor-pointer"
                 >
                   {license.isPro ? <Download className="w-3.5 h-3.5" /> : <Lock className="w-3 h-3 text-[#F59E0B]" />}
-                  {license.isPro ? 'Export 12-Wk Plan CSV' : 'Export 12-Wk CSV (Pro)'}
+                  {license.isPro
+                    ? tr(lang, '匯出 12 週課表 CSV', 'Export 12-Wk Plan CSV')
+                    : tr(lang, '匯出 12 週課表 CSV (Pro)', 'Export 12-Wk CSV (Pro)')}
                 </button>
               </div>
               <div className="overflow-x-auto border border-[#2A323D]/60">
                 <table className="w-full text-xs font-mono-telemetry tabular-nums">
                   <thead className={`border-b ${borderCls} ${mutedText}`}>
                     <tr>
-                      <th className="text-left py-2 px-3">Wk</th>
-                      <th className="text-left py-2 px-2">Phase</th>
-                      <th className="text-left py-2 px-2">Progression Target</th>
-                      <th className="text-left py-2 px-2">Prescription</th>
-                      <th className="text-right py-2 px-3">Eq. Vol</th>
+                      <th className="text-left py-2 px-3">{tr(lang, '週次', 'Wk')}</th>
+                      <th className="text-left py-2 px-2">{tr(lang, '週期階段', 'Phase')}</th>
+                      <th className="text-left py-2 px-2">{tr(lang, '目標動作與力矩', 'Progression Target')}</th>
+                      <th className="text-left py-2 px-2">{tr(lang, '組數與秒數處方', 'Prescription')}</th>
+                      <th className="text-right py-2 px-3">{tr(lang, '週當量負荷', 'Eq. Vol')}</th>
                     </tr>
                   </thead>
                   <tbody className={`divide-y ${borderCls}`}>
-                    {mesocycle12Wk.map((wk) => (
-                      <tr key={wk.week} className={wk.phase === 'Tendon Deload' ? 'bg-[#F59E0B]/10' : ''}>
-                        <td className="py-1.5 px-3 font-bold">W{wk.week}</td>
-                        <td className={`py-1.5 px-2 font-sans ${wk.phase === 'Tendon Deload' ? 'text-[#F59E0B] font-semibold' : ''}`}>
-                          {wk.phase}
-                        </td>
-                        <td className="py-1.5 px-2 font-sans">{wk.progressionLabel} ({wk.targetTorqueNm} N·m)</td>
-                        <td className="py-1.5 px-2">{wk.prescription}</td>
-                        <td className="py-1.5 px-3 text-right font-semibold">{wk.weeklyEqSecTarget} eq·s</td>
-                      </tr>
-                    ))}
+                    {mesocycle12Wk.map((wk) => {
+                      const stepMatch = bridgeLadder.find((s) => s.stepNumber === wk.bridgeStepNumber);
+                      const progLbl = stepMatch
+                        ? localizeBridgeStep(lang, stepMatch, skill).label
+                        : wk.progressionLabel;
+                      return (
+                        <tr key={wk.week} className={wk.phase === 'Tendon Deload' ? 'bg-[#F59E0B]/10' : ''}>
+                          <td className="py-1.5 px-3 font-bold">W{wk.week}</td>
+                          <td className={`py-1.5 px-2 font-sans ${wk.phase === 'Tendon Deload' ? 'text-[#F59E0B] font-semibold' : ''}`}>
+                            {formatPhaseLabel(lang, wk.phase)}
+                          </td>
+                          <td className="py-1.5 px-2 font-sans">{progLbl} ({wk.targetTorqueNm} N·m)</td>
+                          <td className="py-1.5 px-2">{wk.prescription}</td>
+                          <td className="py-1.5 px-3 text-right font-semibold">{wk.weeklyEqSecTarget} eq·s</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -743,6 +827,7 @@ export const App: React.FC = () => {
         {/* TAB 3: TENDON-SAFE VOLUME LOG */}
         {activeTab === 'log' && (
           <WorkoutLogPanel
+            lang={lang}
             currentSkill={skill}
             currentPose={pose}
             currentTorqueNm={solution.totalTorqueNm}
@@ -757,11 +842,17 @@ export const App: React.FC = () => {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-start gap-2.5 text-xs">
           <ShieldAlert className="w-4 h-4 text-[#F59E0B] shrink-0 mt-0.5" />
           <p className={mutedText}>
-            <strong>Informational &amp; General Fitness Disclaimer:</strong> LeverLab estimates static joint torque from published Winter (2009) / de Leva (1996) / Drillis &amp; Contini anthropometric tables for educational training planning only and does not provide medical or physical therapy advice. Stop immediately if you experience sharp distal biceps, elbow, or wrist pain and consult a qualified sports physiotherapist.
+            <strong>{tr(lang, '運動科學資訊與非醫療免責聲明：', 'Informational & General Fitness Disclaimer:')}</strong>{' '}
+            {tr(
+              lang,
+              'LeverLab 依據公開發表之 Winter (2009)／de Leva (1996)／Drillis & Contini 人體生物力學文獻估算關節靜態力矩，僅供一般訓練規劃與教學參考，不構成醫療診斷或物理治療建議。若訓練時出現遠端肱二頭肌肌腱、手肘或手腕刺痛，請立即停止訓練並諮詢運動醫學專科醫師或物理治療師。',
+              'LeverLab estimates static joint torque from published Winter (2009) / de Leva (1996) / Drillis & Contini anthropometric tables for educational training planning only and does not provide medical or physical therapy advice. Stop immediately if you experience sharp distal biceps, elbow, or wrist pain and consult a qualified sports physiotherapist.'
+            )}
           </p>
         </div>
       </footer>
       <ProLicenseModal
+        lang={lang}
         open={proOpen}
         onClose={() => setProOpen(false)}
         daylight={daylight}

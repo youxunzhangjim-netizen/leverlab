@@ -3,6 +3,7 @@ import { AlertTriangle, Download, Pause, Play, Plus, RotateCcw, Timer, Trash2, U
 import { z } from 'zod';
 import { PresetPose, SkillType } from '../engine/biomechanics/torqueSolver';
 import { evaluateAcwrTendonSafety } from '../engine/biomechanics/acwrAndPeriodization';
+import { formatPoseLabel, formatSkillLabel, LeverLang, tr } from '../i18n';
 
 const LogEntrySchema = z.object({
   id: z.string(),
@@ -69,6 +70,7 @@ function loadEntries(): WorkoutEntry[] {
 }
 
 interface Props {
+  lang?: LeverLang;
   currentSkill: SkillType;
   currentPose: PresetPose;
   currentTorqueNm: number;
@@ -77,6 +79,7 @@ interface Props {
 }
 
 export const WorkoutLogPanel: React.FC<Props> = ({
+  lang = 'zh-TW',
   currentSkill,
   currentPose,
   currentTorqueNm,
@@ -89,7 +92,6 @@ export const WorkoutLogPanel: React.FC<Props> = ({
   const [spikeThresholdPct, setSpikeThresholdPct] = useState(20);
   const [importError, setImportError] = useState<string | null>(null);
 
-  // Live Gym-Floor Isometric Stopwatch & 3-Min Straight-Arm Rest Timer
   const [stopwatchRunning, setStopwatchRunning] = useState(false);
   const [stopwatchTenths, setStopwatchTenths] = useState(0);
   const [restSecLeft, setRestSecLeft] = useState(0);
@@ -134,7 +136,6 @@ export const WorkoutLogPanel: React.FC<Props> = ({
     persist(entries.filter((e) => e.id !== id));
   };
 
-  // Straight-Arm Torque-Volume = sum(sets * holdSec * (% of Full / 100))
   const stats = useMemo(() => {
     const vol = (bucket: 'current' | 'previous') =>
       entries
@@ -198,7 +199,7 @@ export const WorkoutLogPanel: React.FC<Props> = ({
       try {
         const parsed = z.array(LogEntrySchema).safeParse(JSON.parse(String(reader.result)));
         if (!parsed.success) {
-          setImportError('Invalid LeverLab JSON backup schema.');
+          setImportError(tr(lang, 'JSON 備份檔格式驗證失敗。', 'Invalid LeverLab JSON backup schema.'));
           return;
         }
         setImportError(null);
@@ -215,15 +216,34 @@ export const WorkoutLogPanel: React.FC<Props> = ({
   const subCls = daylight ? 'bg-[#F8FAFC]' : 'bg-[#101317]';
   const mutedText = daylight ? 'text-[#475569]' : 'text-[#94A3B8]';
 
+  const zoneLabelLocalized =
+    lang === 'en'
+      ? stats.acwr.zoneLabel
+      : stats.acwr.zone === 'danger'
+      ? '危險暴增 (> 1.50)'
+      : stats.acwr.zone === 'caution'
+      ? '警戒上限 (1.31 – 1.50)'
+      : stats.acwr.zone === 'sweet_spot'
+      ? '最佳適應區間 (0.80 – 1.30)'
+      : '減量恢復期 (< 0.80)';
+
   return (
     <section className={`border ${borderCls} ${cardCls} p-5 space-y-4`}>
       <div className={`flex flex-wrap items-center justify-between gap-3 border-b ${borderCls} pb-3`}>
         <div>
           <h2 className="font-display-lab text-base font-bold">
-            Straight-Arm Tendon-Safe Volume Log (Offline LocalStorage)
+            {tr(
+              lang,
+              '直臂肌腱安全負荷日誌（100% 離線儲存於瀏覽器 LocalStorage）',
+              'Straight-Arm Tendon-Safe Volume Log (Offline LocalStorage)'
+            )}
           </h2>
           <p className={`text-xs ${mutedText}`}>
-            Tracks weekly Straight-Arm Torque-Volume (<code className="font-mono-telemetry">sets × sec × %Full</code>) and alerts on sudden &gt;{spikeThresholdPct}% tendon-load spikes.
+            {tr(
+              lang,
+              `自動統計每週直臂加權力矩秒數（組數 × 秒數 × %全展體），當單週暴增超過 ${spikeThresholdPct}% 時發出肌腱過載警示。`,
+              `Tracks weekly Straight-Arm Torque-Volume (sets × sec × %Full) and alerts on sudden >${spikeThresholdPct}% tendon-load spikes.`
+            )}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs font-mono-telemetry">
@@ -239,10 +259,10 @@ export const WorkoutLogPanel: React.FC<Props> = ({
             onClick={exportJson}
             className={`inline-flex items-center gap-1 px-2.5 py-1 border ${borderCls} cursor-pointer`}
           >
-            <Download className="w-3.5 h-3.5" /> JSON Backup
+            <Download className="w-3.5 h-3.5" /> {tr(lang, 'JSON 備份', 'JSON Backup')}
           </button>
           <label className={`inline-flex items-center gap-1 px-2.5 py-1 border ${borderCls} cursor-pointer`}>
-            <Upload className="w-3.5 h-3.5" /> Restore
+            <Upload className="w-3.5 h-3.5" /> {tr(lang, '匯入還原', 'Restore')}
             <input type="file" accept=".json" onChange={importJson} className="hidden" />
           </label>
         </div>
@@ -253,11 +273,15 @@ export const WorkoutLogPanel: React.FC<Props> = ({
       {/* Weekly KPIs + ACWR Tendon Safety Gauge */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 font-mono-telemetry tabular-nums">
         <div className={`p-3 border ${borderCls} ${subCls}`}>
-          <span className={`text-[10px] block ${mutedText}`}>PRIOR WEEK TORQUE-VOL</span>
+          <span className={`text-[10px] block ${mutedText}`}>
+            {tr(lang, '上週直臂力矩總量', 'PRIOR WEEK TORQUE-VOL')}
+          </span>
           <span className="text-xl font-bold">{stats.prevVol} eq·s</span>
         </div>
         <div className={`p-3 border ${borderCls} ${subCls}`}>
-          <span className={`text-[10px] block ${mutedText}`}>CURRENT WEEK TORQUE-VOL</span>
+          <span className={`text-[10px] block ${mutedText}`}>
+            {tr(lang, '本週直臂力矩總量', 'CURRENT WEEK TORQUE-VOL')}
+          </span>
           <span className="text-xl font-bold">{stats.currVol} eq·s</span>
         </div>
         <div
@@ -266,9 +290,11 @@ export const WorkoutLogPanel: React.FC<Props> = ({
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className={`text-[10px] ${mutedText}`}>WEEK-OVER-WEEK DELTA</span>
+            <span className={`text-[10px] ${mutedText}`}>
+              {tr(lang, '週對週增減率', 'WEEK-OVER-WEEK DELTA')}
+            </span>
             <label className="text-[10px] flex items-center gap-1">
-              Cap:
+              {tr(lang, '警戒線:', 'Cap:')}
               <input
                 type="number"
                 min={10}
@@ -294,7 +320,9 @@ export const WorkoutLogPanel: React.FC<Props> = ({
               : `${borderCls} ${subCls}`
           }`}
         >
-          <span className={`text-[10px] block ${mutedText}`}>ACWR (ACUTE:CHRONIC)</span>
+          <span className={`text-[10px] block ${mutedText}`}>
+            {tr(lang, '急慢性負荷比 ACWR', 'ACWR (ACUTE:CHRONIC)')}
+          </span>
           <span
             className={`text-xl font-bold ${
               stats.acwr.zone === 'danger'
@@ -306,7 +334,7 @@ export const WorkoutLogPanel: React.FC<Props> = ({
           >
             {stats.acwr.acwrRatio.toFixed(2)}×
           </span>
-          <span className={`text-[10px] block ${mutedText}`}>{stats.acwr.zoneLabel}</span>
+          <span className={`text-[10px] block ${mutedText}`}>{zoneLabelLocalized}</span>
         </div>
       </div>
 
@@ -315,7 +343,9 @@ export const WorkoutLogPanel: React.FC<Props> = ({
         <div className="flex flex-wrap items-center gap-2.5">
           <Timer className="w-4 h-4 text-[#84CC16]" />
           <div>
-            <span className={`text-[10px] block ${mutedText}`}>ISOMETRIC HOLD STOPWATCH</span>
+            <span className={`text-[10px] block ${mutedText}`}>
+              {tr(lang, '等長靜態支撐碼錶', 'ISOMETRIC HOLD STOPWATCH')}
+            </span>
             <strong className="text-lg text-[#84CC16]">{(stopwatchTenths / 10).toFixed(1)} s</strong>
           </div>
           <button
@@ -324,7 +354,7 @@ export const WorkoutLogPanel: React.FC<Props> = ({
             className="inline-flex items-center gap-1 px-2.5 py-1 text-xs border border-[#84CC16] bg-[#84CC16]/15 font-semibold cursor-pointer"
           >
             {stopwatchRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-            {stopwatchRunning ? 'Stop' : 'Start Hold'}
+            {stopwatchRunning ? tr(lang, '暫停', 'Stop') : tr(lang, '開始計時', 'Start Hold')}
           </button>
           <button
             type="button"
@@ -334,7 +364,7 @@ export const WorkoutLogPanel: React.FC<Props> = ({
             }}
             className={`px-2 py-1 text-xs border ${borderCls} cursor-pointer`}
           >
-            Use Hold ({Math.max(1, Math.round(stopwatchTenths / 10))}s)
+            {tr(lang, `帶入秒數 (${Math.max(1, Math.round(stopwatchTenths / 10))}s)`, `Use Hold (${Math.max(1, Math.round(stopwatchTenths / 10))}s)`)}
           </button>
           <button
             type="button"
@@ -350,7 +380,7 @@ export const WorkoutLogPanel: React.FC<Props> = ({
         </div>
 
         <div className="flex items-center gap-2 text-xs">
-          <span className={mutedText}>ATP-PC Rest:</span>
+          <span className={mutedText}>{tr(lang, '組間磷酸肌酸恢復：', 'ATP-PC Rest:')}</span>
           <strong className="text-sm text-[#F59E0B]">
             {Math.floor(restSecLeft / 60)}:{String(restSecLeft % 60).padStart(2, '0')}
           </strong>
@@ -359,7 +389,7 @@ export const WorkoutLogPanel: React.FC<Props> = ({
             onClick={() => setRestSecLeft(180)}
             className={`px-2 py-1 border ${borderCls} hover:border-[#F59E0B] cursor-pointer`}
           >
-            Start 3:00 Rest
+            {tr(lang, '啟動 3:00 倒數', 'Start 3:00 Rest')}
           </button>
         </div>
       </div>
@@ -368,7 +398,18 @@ export const WorkoutLogPanel: React.FC<Props> = ({
         <div className="p-3 border border-[#DC2626] bg-[#DC2626]/10 flex items-start gap-2.5 text-xs">
           <AlertTriangle className="w-4 h-4 text-[#EF4444] shrink-0 mt-0.5" />
           <span>
-            <strong>Tendon Overload Spike Warning (+{stats.wowPct}%):</strong> Your weekly Straight-Arm isometric torque-volume jumped more than {spikeThresholdPct}% over last week. Biceps/brachialis tendons adapt slower than muscle—consider trimming 1–2 sets or adding hip band assistance.
+            <strong>
+              {tr(
+                lang,
+                `肌腱過載暴增警告 (+${stats.wowPct}%)：`,
+                `Tendon Overload Spike Warning (+${stats.wowPct}%):`
+              )}
+            </strong>{' '}
+            {tr(
+              lang,
+              `本週直臂等長力矩訓練量較上週激增超過 ${spikeThresholdPct}%。肱二頭肌遠端與手肘肌腱之膠原蛋白重塑速率遠慢於肌纖維，建議減少 1–2 組或增加骨盆彈力帶輔助以預防肌腱炎。`,
+              `Your weekly Straight-Arm isometric torque-volume jumped more than ${spikeThresholdPct}% over last week. Biceps/brachialis tendons adapt slower than muscle—consider trimming 1–2 sets or adding hip band assistance.`
+            )}
           </span>
         </div>
       )}
@@ -376,13 +417,17 @@ export const WorkoutLogPanel: React.FC<Props> = ({
       {/* Quick Log Bar */}
       <div className={`p-3 border ${borderCls} ${subCls} flex flex-wrap items-end gap-3`}>
         <div className="text-xs font-mono-telemetry">
-          <span className={`block text-[10px] ${mutedText}`}>ACTIVE CALCULATOR POSE</span>
+          <span className={`block text-[10px] ${mutedText}`}>
+            {tr(lang, '目前計算器選定姿勢', 'ACTIVE CALCULATOR POSE')}
+          </span>
           <strong>
-            {currentSkill} · {currentPose} ({currentTorqueNm} N·m · {currentPercentOfFull}%)
+            {formatSkillLabel(lang, currentSkill)} · {formatPoseLabel(lang, currentPose)} ({currentTorqueNm} N·m · {currentPercentOfFull}%)
           </strong>
         </div>
         <div>
-          <label htmlFor="log-sets" className={`block text-[10px] ${mutedText}`}>Sets</label>
+          <label htmlFor="log-sets" className={`block text-[10px] ${mutedText}`}>
+            {tr(lang, '組數 Sets', 'Sets')}
+          </label>
           <input
             id="log-sets"
             type="number"
@@ -394,7 +439,9 @@ export const WorkoutLogPanel: React.FC<Props> = ({
           />
         </div>
         <div>
-          <label htmlFor="log-sec" className={`block text-[10px] ${mutedText}`}>Hold (s)</label>
+          <label htmlFor="log-sec" className={`block text-[10px] ${mutedText}`}>
+            {tr(lang, '支撐秒數 (s)', 'Hold (s)')}
+          </label>
           <input
             id="log-sec"
             type="number"
@@ -411,7 +458,7 @@ export const WorkoutLogPanel: React.FC<Props> = ({
           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#84CC16] text-[#101317] text-xs font-bold hover:bg-[#A3E635] cursor-pointer"
         >
           <Plus className="w-3.5 h-3.5" />
-          Log Straight-Arm Work
+          {tr(lang, '記錄直臂訓練組', 'Log Straight-Arm Work')}
         </button>
       </div>
 
@@ -420,11 +467,11 @@ export const WorkoutLogPanel: React.FC<Props> = ({
         <table className="w-full text-xs">
           <thead className={`border-b ${borderCls} ${mutedText}`}>
             <tr>
-              <th className="text-left py-2">Date / Bucket</th>
-              <th className="text-left py-2">Skill &amp; Pose</th>
-              <th className="text-right py-2">Sets × Hold</th>
-              <th className="text-right py-2">Torque</th>
-              <th className="text-right py-2">Eq. Volume</th>
+              <th className="text-left py-2">{tr(lang, '日期／週次', 'Date / Bucket')}</th>
+              <th className="text-left py-2">{tr(lang, '動作與姿勢', 'Skill & Pose')}</th>
+              <th className="text-right py-2">{tr(lang, '組數 × 秒數', 'Sets × Hold')}</th>
+              <th className="text-right py-2">{tr(lang, '肩關節力矩', 'Torque')}</th>
+              <th className="text-right py-2">{tr(lang, '加權當量秒數', 'Eq. Volume')}</th>
               <th className="text-right py-2"></th>
             </tr>
           </thead>
@@ -432,7 +479,9 @@ export const WorkoutLogPanel: React.FC<Props> = ({
             {entries.map((entry) => (
               <tr key={entry.id}>
                 <td className="py-2 font-sans">{entry.dateIso}</td>
-                <td className="py-2">{entry.skill} · {entry.pose}</td>
+                <td className="py-2">
+                  {formatSkillLabel(lang, entry.skill)} · {formatPoseLabel(lang, entry.pose)}
+                </td>
                 <td className="py-2 text-right">{entry.sets} × {entry.holdSec}s</td>
                 <td className="py-2 text-right">{entry.torqueNm} N·m ({entry.percentOfFull}%)</td>
                 <td className="py-2 text-right font-semibold">

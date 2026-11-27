@@ -1,7 +1,9 @@
 import React from 'react';
 import { SkillType, TorqueSolution } from '../engine/biomechanics/torqueSolver';
+import { formatSkillLabel, LeverLang, tr } from '../i18n';
 
 interface BodyRigSvgProps {
+  lang?: LeverLang;
   solution: TorqueSolution;
   skill: SkillType;
   bandAssistKg: number;
@@ -9,6 +11,7 @@ interface BodyRigSvgProps {
 }
 
 export const BodyRigSvg: React.FC<BodyRigSvgProps> = ({
+  lang = 'zh-TW',
   solution,
   skill,
   bandAssistKg,
@@ -16,7 +19,6 @@ export const BodyRigSvg: React.FC<BodyRigSvgProps> = ({
 }) => {
   const { joints, effectiveAngles } = solution;
 
-  // Side view coordinate mapping: shoulder fulcrum at (110, 120), 1 meter = 200 px
   const ox = 115;
   const oy = skill === 'planche' ? 112 : 128;
   const pxPerM = 195;
@@ -30,7 +32,6 @@ export const BodyRigSvg: React.FC<BodyRigSvgProps> = ({
   const accentLime = daylight ? '#4D7C0F' : '#84CC16';
   const bgFill = daylight ? '#FFFFFF' : '#13181F';
 
-  // Top-view straddle geometry (right box)
   const topOx = 60;
   const topOy = 115;
   const halfStraddleRad = ((effectiveAngles.straddleAngleDeg / 2) * Math.PI) / 180;
@@ -47,8 +48,11 @@ export const BodyRigSvg: React.FC<BodyRigSvgProps> = ({
       <div className={`md:col-span-8 border ${daylight ? 'border-[#CBD5E1] bg-white' : 'border-[#2A323D] bg-[#13181F]'} p-3`}>
         <div className="flex items-center justify-between text-[11px] font-mono-telemetry mb-1.5">
           <span className={daylight ? 'text-[#475569]' : 'text-[#94A3B8]'}>
-            SIDE-VIEW LEVER MODEL ({skill === 'front_lever' ? 'FRONT LEVER' : skill === 'back_lever' ? 'BACK LEVER' : 'PLANCHE'}
-            {effectiveAngles.bodyTiltDeg > 0 ? ` · ${effectiveAngles.bodyTiltDeg}° INCLINE` : ''})
+            {tr(lang, '側面生物力學力臂模型', 'SIDE-VIEW LEVER MODEL')} ({formatSkillLabel(lang, skill).toUpperCase()}
+            {effectiveAngles.bodyTiltDeg > 0
+              ? ` · ${effectiveAngles.bodyTiltDeg}° ${tr(lang, '仰角', 'INCLINE')}`
+              : ''}
+            )
           </span>
           <span style={{ color: accentLime }}>
             COM r_x = {solution.centerOfMassXFromShoulderCm} cm
@@ -62,7 +66,6 @@ export const BodyRigSvg: React.FC<BodyRigSvgProps> = ({
           aria-label="2D side-view biomechanical skeleton showing shoulder fulcrum and center of mass"
         >
           <rect x="0" y="0" width="460" height="220" fill={bgFill} />
-          {/* Background metric grid */}
           {[0.25, 0.5, 0.75, 1.0, 1.25, 1.5].map((m) => (
             <g key={m}>
               <line x1={sx(m)} y1="12" x2={sx(m)} y2="196" stroke={gridStroke} strokeWidth="1" />
@@ -72,7 +75,6 @@ export const BodyRigSvg: React.FC<BodyRigSvgProps> = ({
             </g>
           ))}
 
-          {/* Support Bar / Parallettes & Supporting Arm */}
           {skill === 'front_lever' || skill === 'back_lever' ? (
             <>
               <line x1="70" y1="36" x2="160" y2="36" stroke={strokeMuted} strokeWidth="4" strokeLinecap="round" />
@@ -85,7 +87,6 @@ export const BodyRigSvg: React.FC<BodyRigSvgProps> = ({
             </>
           )}
 
-          {/* Horizontal lever arm bar from shoulder to COM */}
           <line
             x1={sx(0)}
             y1={sy(0) + (skill === 'planche' ? -54 : 54)}
@@ -95,7 +96,6 @@ export const BodyRigSvg: React.FC<BodyRigSvgProps> = ({
             strokeWidth="2"
           />
 
-          {/* Hip Band Assist Vector */}
           {bandAssistKg > 0 && (
             <g>
               <line
@@ -114,12 +114,11 @@ export const BodyRigSvg: React.FC<BodyRigSvgProps> = ({
                 fontFamily="JetBrains Mono, monospace"
                 fill="#F59E0B"
               >
-                Band -{bandAssistKg}kg
+                {tr(lang, `彈力帶 -${bandAssistKg}kg`, `Band -${bandAssistKg}kg`)}
               </text>
             </g>
           )}
 
-          {/* Far leg (Right) slightly translucent for one-leg clarity */}
           <line
             x1={sx(joints.hip.x)}
             y1={sy(joints.hip.y)}
@@ -141,19 +140,16 @@ export const BodyRigSvg: React.FC<BodyRigSvgProps> = ({
             opacity="0.65"
           />
 
-          {/* Head + Trunk + Near Leg */}
           <circle cx={sx(joints.head.x)} cy={sy(joints.head.y)} r="13" fill="none" stroke={strokePrimary} strokeWidth="3.5" />
           <line x1={sx(0)} y1={sy(0)} x2={sx(joints.hip.x)} y2={sy(joints.hip.y)} stroke={strokePrimary} strokeWidth="7" strokeLinecap="round" />
           <line x1={sx(joints.hip.x)} y1={sy(joints.hip.y)} x2={sx(joints.kneeLeft.x)} y2={sy(joints.kneeLeft.y)} stroke={strokePrimary} strokeWidth="5.5" strokeLinecap="round" />
           <line x1={sx(joints.kneeLeft.x)} y1={sy(joints.kneeLeft.y)} x2={sx(joints.ankleLeft.x)} y2={sy(joints.ankleLeft.y)} stroke={strokePrimary} strokeWidth="4.5" strokeLinecap="round" />
 
-          {/* Shoulder Fulcrum */}
           <circle cx={sx(0)} cy={sy(0)} r="6" fill={accentLime} stroke={bgFill} strokeWidth="1.5" />
           <text x={sx(0) - 34} y={sy(0) + 22} fontSize="9" fontFamily="JetBrains Mono, monospace" fill={accentLime}>
-            FULCRUM
+            {tr(lang, '肩支點 FULCRUM', 'FULCRUM')}
           </text>
 
-          {/* Center of Mass Plumb Line & Crosshair */}
           <line
             x1={sx(joints.com.x)}
             y1="16"
@@ -172,7 +168,7 @@ export const BodyRigSvg: React.FC<BodyRigSvgProps> = ({
             fontWeight="700"
             fill="#F59E0B"
           >
-            COM
+            {tr(lang, '質心 COM', 'COM')}
           </text>
         </svg>
       </div>
@@ -180,7 +176,9 @@ export const BodyRigSvg: React.FC<BodyRigSvgProps> = ({
       {/* Top-view Straddle Abduction Diagram */}
       <div className={`md:col-span-4 border ${daylight ? 'border-[#CBD5E1] bg-white' : 'border-[#2A323D] bg-[#13181F]'} p-3`}>
         <div className="flex items-center justify-between text-[11px] font-mono-telemetry mb-1.5">
-          <span className={daylight ? 'text-[#475569]' : 'text-[#94A3B8]'}>TOP-VIEW STRADDLE</span>
+          <span className={daylight ? 'text-[#475569]' : 'text-[#94A3B8]'}>
+            {tr(lang, '俯視分腿張角投影', 'TOP-VIEW STRADDLE')}
+          </span>
           <span style={{ color: accentLime }}>φ = {effectiveAngles.straddleAngleDeg}°</span>
         </div>
 
@@ -192,10 +190,8 @@ export const BodyRigSvg: React.FC<BodyRigSvgProps> = ({
         >
           <rect x="0" y="0" width="220" height="220" fill={bgFill} />
           <line x1="20" y1={topOy} x2="205" y2={topOy} stroke={gridStroke} strokeDasharray="3 3" />
-          {/* Shoulders & Torso */}
           <line x1={topOx} y1={topOy - 22} x2={topOx} y2={topOy + 22} stroke={strokeMuted} strokeWidth="5" strokeLinecap="round" />
           <line x1={topOx} y1={topOy} x2={hipTopX} y2={topOy} stroke={strokePrimary} strokeWidth="7" strokeLinecap="round" />
-          {/* Abducted legs */}
           <line x1={hipTopX} y1={topOy} x2={leftFootTopX} y2={leftFootTopY} stroke={accentLime} strokeWidth="5" strokeLinecap="round" />
           <line x1={hipTopX} y1={topOy} x2={rightFootTopX} y2={rightFootTopY} stroke={accentLime} strokeWidth="5" strokeLinecap="round" />
           <circle cx={topOx} cy={topOy} r="5" fill={accentLime} />
