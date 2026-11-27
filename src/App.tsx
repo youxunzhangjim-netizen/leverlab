@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Activity, Camera, ClipboardList, Crown, Download, Lock, Sliders, Sun, Moon, ShieldAlert } from 'lucide-react';
+import { Activity, Camera, ClipboardList, Download, KeyRound, Lock, Sliders, Sun, Moon, ShieldAlert } from 'lucide-react';
 import { PresetPose, SkillType, solveStaticShoulderTorque } from './engine/biomechanics/torqueSolver';
 import { prescribeAutoBridge } from './engine/biomechanics/bridgePrescriber';
 import { generate12WeekMesocycle } from './engine/biomechanics/acwrAndPeriodization';
@@ -262,13 +262,13 @@ export const App: React.FC = () => {
                   : 'border-[#F59E0B] bg-[#F59E0B]/15 text-[#F59E0B]'
               }`}
             >
-              <Crown className="w-3.5 h-3.5" />
+              <KeyRound className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">
                 {license.isPro
                   ? license.mode === 'local_full'
-                    ? 'LOCAL FULL'
+                    ? 'EDITION: PRO'
                     : 'PRO'
-                  : 'Pro US$29'}
+                  : 'Edition & License'}
               </span>
             </button>
 
